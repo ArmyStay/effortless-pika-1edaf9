@@ -1,0 +1,88 @@
+@import "tailwindcss" source("../");
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+
+:root {
+  --ink: #121110;
+  --paper: #f4efe6;
+  --panel: #1b1a17;
+  --panel-raised: #232019;
+  --amber: #ffb347;
+  --amber-dim: #a86a1f;
+  --lime: #c8e854;
+  --rule: #3a352c;
+  --font-display: 'Fraunces', 'Georgia', serif;
+  --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  @apply m-0;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-mono);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: var(--font-mono);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* subtle film-grain overlay, fixed so it never repaints on scroll */
+.grain-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@keyframes blink-rec {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+.rec-dot {
+  animation: blink-rec 1.6s ease-in-out infinite;
+}
+
+@keyframes sb-fade-up {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes sb-scale-in {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes sb-slide-in-left {
+  from { opacity: 0; transform: translateX(-24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes sb-node-pop {
+  0% { opacity: 0; transform: scale(0.4); }
+  60% { opacity: 1; transform: scale(1.12); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes sb-draw-line {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+@keyframes sb-caret {
+  0%, 45% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+.sb-fade-up { animation: sb-fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.sb-scale-in { animation: sb-scale-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.sb-slide-in-left { animation: sb-slide-in-left 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.sb-node-pop { animation: sb-node-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.sb-draw-line { transform-origin: top; animation: sb-draw-line 0.45s ease-out both; }
+.sb-caret { animation: sb-caret 0.9s steps(1) infinite; }
