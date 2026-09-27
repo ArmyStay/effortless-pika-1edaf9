@@ -3,15 +3,28 @@ import type { Role } from '../../db/schema'
 import { estimateSpokenSeconds } from '../lib/scriptGenerator'
 import { StoryboardBackdrop, TechVisual, visualForTag } from './StoryboardVisuals'
 
-const BASE_RANGES = [
-  [0, 4],
-  [4, 12],
-  [12, 25],
-  [25, 38],
-  [38, 45],
-] as const
+type FlowId = 'incident' | 'pulse' | 'pipeline' | 'blueprint' | 'field-guide'
 
-const SCENE_LABELS = ['Hook', 'What is it', 'The job', 'Roadmap', 'Call to action']
+const FLOWS: Record<FlowId, {
+  name: string; labels: string[]; seconds: number[]; steps: string[]
+  kicker: string; taskHeading: string; roadmapHeading: string
+  palette: number; background: number; motion: string
+}> = {
+  incident: { name: 'Incident countdown', labels: ['Alert', 'Threat', 'Response', 'Hardening', 'Verdict'], seconds: [5, 8, 14, 11, 7], steps: ['Signal detected', 'Investigate', 'Contain', 'Protect'], kicker: 'Incoming security brief', taskHeading: 'The response playbook', roadmapHeading: 'Build your defenses', palette: 1, background: 4, motion: 'sb-flow-incident' },
+  pulse: { name: 'Live system pulse', labels: ['Status', 'System', 'On call', 'Level up', 'Handoff'], seconds: [4, 9, 15, 11, 6], steps: ['Observe', 'Diagnose', 'Automate', 'Stabilize'], kicker: 'Production is live', taskHeading: 'When the pager fires', roadmapHeading: 'From signal to senior', palette: 2, background: 6, motion: 'sb-flow-pulse' },
+  pipeline: { name: 'Moving pipeline', labels: ['Input', 'Transform', 'Ship', 'Stack', 'Output'], seconds: [4, 10, 13, 12, 6], steps: ['Raw input', 'Transform', 'Validate', 'Deliver'], kicker: 'Follow the data', taskHeading: 'Inside the pipeline', roadmapHeading: 'Build the stack', palette: 4, background: 1, motion: 'sb-flow-pipeline' },
+  blueprint: { name: 'System blueprint', labels: ['Problem', 'Design', 'Build', 'Path', 'Launch'], seconds: [5, 10, 12, 12, 6], steps: ['Requirements', 'Architecture', 'Guardrails', 'Platform'], kicker: 'System design file', taskHeading: 'What gets engineered', roadmapHeading: 'Blueprint your path', palette: 3, background: 9, motion: 'sb-flow-blueprint' },
+  'field-guide': { name: 'Career field guide', labels: ['Secret', 'Role', 'Daybook', 'Route', 'Next move'], seconds: [6, 9, 12, 12, 6], steps: ['Listen', 'Translate', 'Create', 'Influence'], kicker: 'A career hiding in plain sight', taskHeading: 'A day in the role', roadmapHeading: 'Your route in', palette: 5, background: 7, motion: 'sb-flow-field' },
+}
+
+function suggestedFlow(role: Role): FlowId {
+  const text = `${role.slug} ${role.title} ${role.brollTags.join(' ')}`.toLowerCase()
+  if (/security|forensic|privacy|red-team|lock/.test(text)) return 'incident'
+  if (/reliability|sre|observability|chaos|database|release/.test(text)) return 'pulse'
+  if (/data|mlops|finops|geospatial|pipeline/.test(text)) return 'pipeline'
+  if (/platform|architect|cloud|api|network/.test(text)) return 'blueprint'
+  return 'field-guide'
+}
 
 const PALETTES = [
   { name: 'Amber', amber: '#ffb347', lime: '#c8e854', panel: '#1b1a17' },
@@ -19,6 +32,11 @@ const PALETTES = [
   { name: 'Mint', amber: '#72d6c5', lime: '#d4ed7b', panel: '#14201e' },
   { name: 'Violet', amber: '#b7a3d6', lime: '#efc678', panel: '#1d1925' },
   { name: 'Ice', amber: '#79bdda', lime: '#e4e9b2', panel: '#151d23' },
+  { name: 'Paper', amber: '#e15d44', lime: '#e7c66a', panel: '#27231e' },
+  { name: 'Orchid', amber: '#d28ab4', lime: '#b9d889', panel: '#211923' },
+  { name: 'Cobalt', amber: '#6fa8dc', lime: '#f0b86e', panel: '#121b2b' },
+  { name: 'Moss', amber: '#a5b96a', lime: '#e5a66f', panel: '#192019' },
+  { name: 'Mono', amber: '#e8e1d5', lime: '#a8a298', panel: '#1b1b1a' },
 ] as const
 
 const BACKGROUNDS = [
@@ -27,6 +45,11 @@ const BACKGROUNDS = [
   { name: 'Terminal', src: '/backgrounds/terminal-grid.svg' },
   { name: 'Network', src: '/backgrounds/network-night.svg' },
   { name: 'Security', src: '/backgrounds/security-lab.svg' },
+  { name: 'Cloud atlas', src: '/backgrounds/cloud-atlas.svg' },
+  { name: 'Control room', src: '/backgrounds/control-room.svg' },
+  { name: 'Editorial desk', src: '/backgrounds/editorial-desk.svg' },
+  { name: 'Circuit field', src: '/backgrounds/circuit-field.svg' },
+  { name: 'Wireframe city', src: '/backgrounds/wireframe-city.svg' },
 ] as const
 
 function TypeOnWords({ text, className }: { text: string; className?: string }) {
@@ -48,11 +71,14 @@ function TypeOnWords({ text, className }: { text: string; className?: string }) 
 }
 
 export function StoryboardPlayer({ role }: { role: Role }) {
+  const suggested = suggestedFlow(role)
+  const [flowId, setFlowId] = useState<FlowId>(suggested)
+  const flow = FLOWS[flowId]
   const [sceneIndex, setSceneIndex] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [replayKey, setReplayKey] = useState(0)
-  const [paletteIndex, setPaletteIndex] = useState(0)
-  const [backgroundIndex, setBackgroundIndex] = useState(0)
+  const [paletteIndex, setPaletteIndex] = useState(FLOWS[suggested].palette)
+  const [backgroundIndex, setBackgroundIndex] = useState(FLOWS[suggested].background)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Scale the base 0-45s ranges proportionally to how long this role's script
@@ -71,10 +97,16 @@ export function StoryboardPlayer({ role }: { role: Role }) {
     return Math.min(1, target / 45)
   }, [role])
 
-  const durations = useMemo(
-    () => BASE_RANGES.map(([start, end]) => (end - start) * scale),
-    [scale],
-  )
+  const durations = useMemo(() => flow.seconds.map((seconds) => seconds * scale), [flow, scale])
+
+  function chooseFlow(id: FlowId) {
+    setFlowId(id)
+    setPaletteIndex(FLOWS[id].palette)
+    setBackgroundIndex(FLOWS[id].background)
+    setSceneIndex(0)
+    setReplayKey((key) => key + 1)
+    setPlaying(false)
+  }
 
   useEffect(() => {
     if (!playing) return
@@ -109,7 +141,7 @@ export function StoryboardPlayer({ role }: { role: Role }) {
   return (
     <div className="flex flex-col items-center gap-6">
       <div
-        className="relative overflow-hidden rounded-[28px] border border-[var(--rule)] bg-[var(--panel)] shadow-[0_40px_80px_-40px_rgba(0,0,0,0.8)]"
+        className={`relative overflow-hidden rounded-[28px] border border-[var(--rule)] bg-[var(--panel)] shadow-[0_40px_80px_-40px_rgba(0,0,0,0.8)] ${flow.motion}`}
         style={{
           width: 'min(340px, 80vw)',
           aspectRatio: '9 / 16',
@@ -126,7 +158,7 @@ export function StoryboardPlayer({ role }: { role: Role }) {
         <div className="absolute inset-0 bg-gradient-to-b from-[var(--panel)]/35 via-[var(--panel)]/75 to-[var(--panel)]" />
         {/* progress segments, IG-story style */}
         <div className="absolute left-3 right-3 top-3 z-20 flex gap-1">
-          {SCENE_LABELS.map((_, i) => (
+          {flow.labels.map((_, i) => (
             <div key={i} className="h-1 flex-1 overflow-hidden rounded-full bg-white/15">
               <div
                 className="h-full bg-[var(--amber)]"
@@ -143,11 +175,11 @@ export function StoryboardPlayer({ role }: { role: Role }) {
         </div>
 
         <StoryboardBackdrop kind={visualForTag(role.brollTags[sceneIndex] ?? '')} />
-        <div key={replayKey} className="absolute inset-0 z-10 flex items-center justify-center p-7">
-          {sceneIndex === 0 && <SceneHook role={role} />}
-          {sceneIndex === 1 && <SceneWhatIsIt role={role} />}
-          {sceneIndex === 2 && <SceneTasks role={role} />}
-          {sceneIndex === 3 && <SceneRoadmap role={role} />}
+        <div key={`${replayKey}-${flowId}`} className="absolute inset-0 z-10 flex items-center justify-center p-7">
+          {sceneIndex === 0 && <SceneHook role={role} kicker={flow.kicker} />}
+          {sceneIndex === 1 && <SceneWhatIsIt role={role} steps={flow.steps} />}
+          {sceneIndex === 2 && <SceneTasks role={role} heading={flow.taskHeading} />}
+          {sceneIndex === 3 && <SceneRoadmap role={role} heading={flow.roadmapHeading} />}
           {sceneIndex === 4 && <SceneCta role={role} />}
         </div>
       </div>
@@ -176,7 +208,7 @@ export function StoryboardPlayer({ role }: { role: Role }) {
       </div>
 
       <div className="flex gap-2">
-        {SCENE_LABELS.map((label, i) => (
+        {flow.labels.map((label, i) => (
           <button
             key={label}
             onClick={() => {
@@ -195,8 +227,14 @@ export function StoryboardPlayer({ role }: { role: Role }) {
       </div>
       <div className="w-full max-w-[340px] space-y-4 rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-4">
         <fieldset>
+          <legend className="mb-2 text-[9px] uppercase tracking-[0.22em] text-[var(--paper)]/45">Story flow · suggested for this role</legend>
+          <select value={flowId} onChange={(event) => chooseFlow(event.target.value as FlowId)} className="w-full rounded-lg border border-[var(--rule)] bg-[var(--ink)] px-3 py-2 text-[11px] text-[var(--paper)] outline-none focus:border-[var(--amber)]">
+            {(Object.entries(FLOWS) as [FlowId, typeof FLOWS[FlowId]][]).map(([id, item]) => <option key={id} value={id}>{item.name}{id === suggested ? ' · suggested' : ''}</option>)}
+          </select>
+        </fieldset>
+        <fieldset>
           <legend className="mb-2 text-[9px] uppercase tracking-[0.22em] text-[var(--paper)]/45">Color palette</legend>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-5 gap-2">
             {PALETTES.map((palette, index) => (
               <button
                 key={palette.name}
@@ -235,14 +273,14 @@ export function StoryboardPlayer({ role }: { role: Role }) {
   )
 }
 
-function SceneHook({ role }: { role: Role }) {
+function SceneHook({ role, kicker }: { role: Role; kicker: string }) {
   return (
     <div className="text-center">
       <div className="sb-scale-in mx-auto mb-5 h-20 w-28 text-[var(--amber)] opacity-80">
         <TechVisual kind={visualForTag(role.brollTags[0] ?? '')} />
       </div>
       <p className="mb-4 font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--amber)]">
-        {role.title}
+        {kicker}
       </p>
       <p className="font-display text-2xl font-semibold leading-snug text-[var(--paper)]">
         <TypeOnWords text={role.hook} />
@@ -252,8 +290,7 @@ function SceneHook({ role }: { role: Role }) {
   )
 }
 
-function SceneWhatIsIt({ role }: { role: Role }) {
-  const steps = ['Role', 'Build & ship', 'Monitor', 'Production']
+function SceneWhatIsIt({ role, steps }: { role: Role; steps: string[] }) {
   return (
     <div className="flex h-full w-full flex-col items-center justify-center">
       <p className="sb-fade-up mb-6 text-center font-display text-lg font-semibold text-[var(--paper)]">
@@ -284,14 +321,14 @@ function SceneWhatIsIt({ role }: { role: Role }) {
   )
 }
 
-function SceneTasks({ role }: { role: Role }) {
+function SceneTasks({ role, heading }: { role: Role; heading: string }) {
   return (
     <div className="w-full">
       <div className="sb-fade-up mx-auto mb-3 h-20 w-32 text-[var(--lime)] opacity-60">
         <TechVisual kind={visualForTag(role.brollTags[2] ?? '', 'dashboard-graphs')} />
       </div>
       <p className="sb-fade-up mb-5 text-center font-display text-lg font-semibold text-[var(--paper)]">
-        What you actually do
+        {heading}
       </p>
       <ol className="space-y-4">
         {role.tasks.slice(0, 3).map((task, i) => (
@@ -311,12 +348,12 @@ function SceneTasks({ role }: { role: Role }) {
   )
 }
 
-function SceneRoadmap({ role }: { role: Role }) {
+function SceneRoadmap({ role, heading }: { role: Role; heading: string }) {
   const steps = role.roadmap.slice(0, 6)
   return (
     <div className="flex h-full w-full flex-col">
       <p className="sb-fade-up mb-4 text-center font-display text-lg font-semibold text-[var(--paper)]">
-        The roadmap
+        {heading}
       </p>
       <div className="flex-1 space-y-0 overflow-hidden">
         {steps.map((step, i) => (
