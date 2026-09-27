@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { Role } from '../../db/schema'
 import { estimateSpokenSeconds } from '../lib/scriptGenerator'
+import { StoryboardBackdrop, TechVisual, visualForTag } from './StoryboardVisuals'
 
 const BASE_RANGES = [
   [0, 4],
@@ -11,6 +12,22 @@ const BASE_RANGES = [
 ] as const
 
 const SCENE_LABELS = ['Hook', 'What is it', 'The job', 'Roadmap', 'Call to action']
+
+const PALETTES = [
+  { name: 'Amber', amber: '#ffb347', lime: '#c8e854', panel: '#1b1a17' },
+  { name: 'Signal', amber: '#ff8066', lime: '#f3d56b', panel: '#201716' },
+  { name: 'Mint', amber: '#72d6c5', lime: '#d4ed7b', panel: '#14201e' },
+  { name: 'Violet', amber: '#b7a3d6', lime: '#efc678', panel: '#1d1925' },
+  { name: 'Ice', amber: '#79bdda', lime: '#e4e9b2', panel: '#151d23' },
+] as const
+
+const BACKGROUNDS = [
+  { name: 'Datacenter', src: '/backgrounds/datacenter.svg' },
+  { name: 'Data stream', src: '/backgrounds/data-stream.svg' },
+  { name: 'Terminal', src: '/backgrounds/terminal-grid.svg' },
+  { name: 'Network', src: '/backgrounds/network-night.svg' },
+  { name: 'Security', src: '/backgrounds/security-lab.svg' },
+] as const
 
 function TypeOnWords({ text, className }: { text: string; className?: string }) {
   const words = text.split(/\s+/)
@@ -34,6 +51,8 @@ export function StoryboardPlayer({ role }: { role: Role }) {
   const [sceneIndex, setSceneIndex] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [replayKey, setReplayKey] = useState(0)
+  const [paletteIndex, setPaletteIndex] = useState(0)
+  const [backgroundIndex, setBackgroundIndex] = useState(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Scale the base 0-45s ranges proportionally to how long this role's script
@@ -91,8 +110,20 @@ export function StoryboardPlayer({ role }: { role: Role }) {
     <div className="flex flex-col items-center gap-6">
       <div
         className="relative overflow-hidden rounded-[28px] border border-[var(--rule)] bg-[var(--panel)] shadow-[0_40px_80px_-40px_rgba(0,0,0,0.8)]"
-        style={{ width: 'min(340px, 80vw)', aspectRatio: '9 / 16' }}
+        style={{
+          width: 'min(340px, 80vw)',
+          aspectRatio: '9 / 16',
+          '--amber': PALETTES[paletteIndex].amber,
+          '--lime': PALETTES[paletteIndex].lime,
+          '--panel': PALETTES[paletteIndex].panel,
+        } as CSSProperties}
       >
+        <img
+          src={BACKGROUNDS[backgroundIndex].src}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover opacity-35"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[var(--panel)]/35 via-[var(--panel)]/75 to-[var(--panel)]" />
         {/* progress segments, IG-story style */}
         <div className="absolute left-3 right-3 top-3 z-20 flex gap-1">
           {SCENE_LABELS.map((_, i) => (
@@ -111,7 +142,8 @@ export function StoryboardPlayer({ role }: { role: Role }) {
           ))}
         </div>
 
-        <div key={replayKey} className="absolute inset-0 flex items-center justify-center p-7">
+        <StoryboardBackdrop kind={visualForTag(role.brollTags[sceneIndex] ?? '')} />
+        <div key={replayKey} className="absolute inset-0 z-10 flex items-center justify-center p-7">
           {sceneIndex === 0 && <SceneHook role={role} />}
           {sceneIndex === 1 && <SceneWhatIsIt role={role} />}
           {sceneIndex === 2 && <SceneTasks role={role} />}
@@ -161,6 +193,43 @@ export function StoryboardPlayer({ role }: { role: Role }) {
           </button>
         ))}
       </div>
+      <div className="w-full max-w-[340px] space-y-4 rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-4">
+        <fieldset>
+          <legend className="mb-2 text-[9px] uppercase tracking-[0.22em] text-[var(--paper)]/45">Color palette</legend>
+          <div className="flex gap-2">
+            {PALETTES.map((palette, index) => (
+              <button
+                key={palette.name}
+                type="button"
+                onClick={() => setPaletteIndex(index)}
+                aria-label={`Use ${palette.name} palette`}
+                aria-pressed={paletteIndex === index}
+                className={`h-8 flex-1 rounded-lg border p-1 transition-transform hover:-translate-y-0.5 ${paletteIndex === index ? 'border-[var(--paper)]' : 'border-[var(--rule)]'}`}
+              >
+                <span className="block h-full rounded" style={{ background: `linear-gradient(135deg, ${palette.amber} 0 50%, ${palette.lime} 50%)` }} />
+              </button>
+            ))}
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend className="mb-2 text-[9px] uppercase tracking-[0.22em] text-[var(--paper)]/45">Background image</legend>
+          <div className="grid grid-cols-5 gap-2">
+            {BACKGROUNDS.map((background, index) => (
+              <button
+                key={background.name}
+                type="button"
+                onClick={() => setBackgroundIndex(index)}
+                aria-label={`Use ${background.name} background`}
+                aria-pressed={backgroundIndex === index}
+                className={`aspect-[9/12] overflow-hidden rounded-md border transition-transform hover:-translate-y-0.5 ${backgroundIndex === index ? 'border-[var(--amber)]' : 'border-[var(--rule)]'}`}
+              >
+                <img src={background.src} alt="" className="h-full w-full object-cover" />
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-[9px] text-[var(--paper)]/35">{BACKGROUNDS[backgroundIndex].name} · {PALETTES[paletteIndex].name}</p>
+        </fieldset>
+      </div>
       <style>{`@keyframes sb-progress { from { width: 0% } to { width: 100% } }`}</style>
     </div>
   )
@@ -169,6 +238,9 @@ export function StoryboardPlayer({ role }: { role: Role }) {
 function SceneHook({ role }: { role: Role }) {
   return (
     <div className="text-center">
+      <div className="sb-scale-in mx-auto mb-5 h-20 w-28 text-[var(--amber)] opacity-80">
+        <TechVisual kind={visualForTag(role.brollTags[0] ?? '')} />
+      </div>
       <p className="mb-4 font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--amber)]">
         {role.title}
       </p>
@@ -215,6 +287,9 @@ function SceneWhatIsIt({ role }: { role: Role }) {
 function SceneTasks({ role }: { role: Role }) {
   return (
     <div className="w-full">
+      <div className="sb-fade-up mx-auto mb-3 h-20 w-32 text-[var(--lime)] opacity-60">
+        <TechVisual kind={visualForTag(role.brollTags[2] ?? '', 'dashboard-graphs')} />
+      </div>
       <p className="sb-fade-up mb-5 text-center font-display text-lg font-semibold text-[var(--paper)]">
         What you actually do
       </p>

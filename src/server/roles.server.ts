@@ -11,11 +11,9 @@ function slugify(title: string) {
     .replace(/(^-|-$)/g, '')
 }
 
-/** Insert the example roles once, only if the table is empty. Safe to call repeatedly. */
+/** Keep the built-in catalog present without overwriting user-edited records. */
 export async function ensureSeeded() {
-  const existing = await db.select({ id: roles.id }).from(roles).limit(1)
-  if (existing.length > 0) return
-  await db.insert(roles).values(seedRoles)
+  await db.insert(roles).values(seedRoles).onConflictDoNothing({ target: roles.slug })
 }
 
 export async function listRoles() {
