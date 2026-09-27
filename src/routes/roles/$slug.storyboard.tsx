@@ -2,6 +2,7 @@ import { createFileRoute, Link, notFound } from '@tanstack/react-router'
 import { getRole } from '../../server/roles.functions'
 import { StoryboardPlayer } from '../../components/StoryboardPlayer'
 import { generateScript } from '../../lib/scriptGenerator'
+import { TechVisual, VISUAL_LABELS, visualForTag } from '../../components/StoryboardVisuals'
 
 export const Route = createFileRoute('/roles/$slug/storyboard')({
   loader: async ({ params }) => {
@@ -61,6 +62,32 @@ function StoryboardPage() {
             AGENTS.md for why the FFmpeg/TTS render pipeline is deferred to a
             future persistent-worker phase.
           </p>
+
+          <section className="mt-10 border-t border-[var(--rule)] pt-8">
+            <div className="mb-5 flex items-end justify-between gap-4">
+              <div>
+                <p className="mb-2 text-xs uppercase tracking-[0.3em] text-[var(--amber)]">Visual asset bank</p>
+                <h2 className="font-display text-2xl font-semibold">Role-matched vector cutaways</h2>
+              </div>
+              <span className="text-[10px] uppercase tracking-widest text-[var(--paper)]/35">SVG · transparent · animated</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {role.brollTags.map((tag, index) => {
+                const kind = visualForTag(tag)
+                return (
+                  <article key={`${tag}-${index}`} className="group overflow-hidden rounded-xl border border-[var(--rule)] bg-[var(--panel)]">
+                    <div className="aspect-[4/3] p-3 text-[var(--paper)]/65 transition-colors group-hover:text-[var(--amber)]">
+                      <TechVisual kind={kind} />
+                    </div>
+                    <div className="border-t border-[var(--rule)] px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-wider text-[var(--paper)]/75">{VISUAL_LABELS[kind]}</p>
+                      <p className="mt-1 truncate text-[9px] text-[var(--paper)]/30">#{tag}</p>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          </section>
         </div>
       </div>
     </div>
